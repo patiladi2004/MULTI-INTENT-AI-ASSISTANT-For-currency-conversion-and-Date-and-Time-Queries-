@@ -1,0 +1,2609 @@
+{
+  "name": "Multi-Intent AI Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hello! Welcome to the AI Assistant.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        736
+      ],
+      "id": "1bb2a2b5-958b-4779-89f6-d313a2472734",
+      "name": "When chat message received",
+      "webhookId": "08dd9442-8e80-4f5a-9e46-03684f6b6208"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SQnRr1mALEPnYB5X",
+          "mode": "list",
+          "cachedResultName": "sessions",
+          "cachedResultUrl": "/projects/jAWnGIQQ4uaadEAG/datatables/SQnRr1mALEPnYB5X"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "keyValue": "={{ $('When chat message received').first().json.sessionId }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        736
+      ],
+      "id": "4af7cc6f-5ff6-4d76-a313-e886b7724917",
+      "name": "Get Session",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionId = $('When chat message received').first().json.sessionId;\nconst userMessage = $('When chat message received').first().json.chatInput;\nconst rows = $input.all();\n\nconst row = rows.length > 0 ? rows[0].json : null;\nconst hasRealRow = row && row.sessionId;\n\nlet state;\nif (!hasRealRow) {\n  state = {\n    sessionId,\n    stage: \"NEW\",\n    auth: { authenticated: false, userId: null, name: null, failedAttempts: 0 },\n    intents: [],\n    intentRetryCount: 0,\n    turnCount: 0,\n    lastAgentResponse: '',\n    isNewRow: true\n  };\n} else {\n  state = {\n    sessionId: row.sessionId,\n    stage: row.stage,\n    auth: {\n      authenticated: row.authenticated,\n      userId: row.userId,\n      name: row.name,\n      failedAttempts: row.failedAttempts\n    },\n    intents: row.intents ? JSON.parse(row.intents) : [],\n    intentRetryCount: row.intentRetryCount,\n    turnCount: row.turnCount,\n    lastAgentResponse: row.lastAgentResponse ?? '',\n    isNewRow: false\n  };\n}\n\nstate.turnCount += 1;\nif (state.turnCount > 40) state.stage = \"END\";\n\nreturn [{ json: { ...state, userMessage } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        736
+      ],
+      "id": "5cd531c8-a01c-4cc2-9746-343d92d5d9d1",
+      "name": "Build State"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "NEW",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5d0a06a2-28e8-406a-88d3-20d6a83a4d67"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Welcome"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ef0dbc08-f21c-42b9-89b1-3f130de2fe19",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "AUTH",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Auth"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "06c43f83-e753-44af-9803-5f2ad68d8090",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "INTENT_CAPTURE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IntentCapture"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7438b9f6-f3c8-4b57-94f7-5786e7a20b50",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "INTENT_CONFIRM",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IntentConfirm"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9baf2045-a542-4acf-8579-bac66a7c1d3a",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "INTENT_HANDLER",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IntentHandler"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cb4a942a-74e8-4aea-b07d-bc2151e64c98",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "WRAPUP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Wrapup"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8ea3e2cd-64ac-46e2-b1c1-ffcd653a497a",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "END",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "End"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        656
+      ],
+      "id": "5ec7f29c-d72c-4eaf-83d5-89eefb6ba551",
+      "name": "Stage Router"
+    },
+    {
+      "parameters": {
+        "content": "## HOW TO START N8N \ndocker run -it --rm --name n8n -p 5678:5678 -v n8n_data:/home/node/.n8n n8nio/n8n [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -352,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "40aee0d6-1f86-4c3f-bfb8-184684b78a11",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.userMessage }}",
+        "options": {
+          "systemMessage": "You are the welcome step of an AI assistant.\nGreet the user warmly in one short sentence.\nThen ask them to please provide their User ID and their 4-digit numeric PIN to continue.\nKeep the entire response to 2 sentences maximum.\nDo not mention how many digits the User ID has.\nDo not ask anything else.\nDo not explain what you can do yet."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        896,
+        -656
+      ],
+      "id": "314fc02d-74cc-4603-872c-c6d7800b2fe5",
+      "name": "Welcome Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "llama3.1:latest",
+          "mode": "list",
+          "cachedResultName": "llama3.1:latest"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        976,
+        -432
+      ],
+      "id": "26b77588-8f50-475d-8109-ab254ba526aa",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "fhdylvxEBFRFKXuU",
+          "name": "Ollama Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2032,
+        -544
+      ],
+      "id": "17934c83-2b28-467c-9b51-ccd9b856234f",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json;\nconst sessionId = $('When chat message received').first().json.sessionId;\nconst buildState = $('Build State').first().json;\n\nreturn [{\n  json: {\n    sessionId: sessionId,\n    stage: \"AUTH\",\n    authenticated: buildState.auth?.authenticated ?? false,\n    userId: buildState.auth?.userId ?? null,\n    name: buildState.auth?.name ?? null,\n    failedAttempts: buildState.auth?.failedAttempts ?? 0,\n    intents: JSON.stringify(buildState.intents ?? []),\n    intentRetryCount: buildState.intentRetryCount ?? 0,\n    turnCount: buildState.turnCount ?? 1,\n    output: agentOutput.output\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -544
+      ],
+      "id": "7916580f-bee3-4c3f-aa48-92953ffa1541",
+      "name": "Set Stage AUTH"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SQnRr1mALEPnYB5X",
+          "mode": "list",
+          "cachedResultName": "sessions",
+          "cachedResultUrl": "/projects/jAWnGIQQ4uaadEAG/datatables/SQnRr1mALEPnYB5X"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "authenticated": "={{ $json.authenticated }}",
+            "intentRetryCount": "={{ $json.intentRetryCount }}",
+            "turnCount": "={{ $json.turnCount }}",
+            "sessionId": "={{ $json.sessionId }}",
+            "stage": "={{ $json.stage }}",
+            "userId": "={{ $json.userId }}",
+            "name": "={{ $json.name }}",
+            "failedAttempts": "={{ $json.failedAttempts }}",
+            "intents": "={{ $json.intents }}",
+            "lastAgentResponse": "={{ $json.lastAgentResponse ?? '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "authenticated",
+              "displayName": "authenticated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "failedAttempts",
+              "displayName": "failedAttempts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intents",
+              "displayName": "intents",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intentRetryCount",
+              "displayName": "intentRetryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "turnCount",
+              "displayName": "turnCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastAgentResponse",
+              "displayName": "lastAgentResponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1536,
+        -544
+      ],
+      "id": "ac1e02fe-f1dd-4dd3-94af-6b3a3f07d366",
+      "name": "Save Session"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.userMessage }}\n\nREMINDER: You must call the Mock User Lookup tool with the user ID and PIN before responding.\nDo not output any result without calling the tool first.",
+        "options": {
+          "systemMessage": "You are the authentication step of an AI assistant.\nYou CANNOT verify any user without calling the Mock User Lookup tool first.\n\nMANDATORY FIRST STEP:\n- You MUST call the Mock User Lookup tool before saying ANYTHING about success or failure.\n- Never try to verify credentials yourself — you do not have access to user data.\n- The tool does the verification for you.\n\nRULES:\n- Never reveal any user's PIN under any circumstances.\n- Never reveal other users' details.\n- The User ID is a short numeric ID (like 5673).\n\nSTEPS:\n1. If the user has not provided both a User ID and PIN, ask for both.\n2. When both are provided, IMMEDIATELY call the Mock User Lookup tool with:\n   {\"userId\": \"ACTUAL_USER_ID\", \"pin\": \"ACTUAL_PIN\"}\n   Replace ACTUAL_USER_ID and ACTUAL_PIN with what the user provided.\n3. Read the tool response:\n   - If verified is true → output ONLY this JSON, nothing else:\n     {\"authResult\": \"success\", \"userId\": \"ID_FROM_TOOL\", \"name\": \"NAME_FROM_TOOL\"}\n   - If verified is false → output ONLY this JSON, nothing else:\n     {\"authResult\": \"failure\", \"reason\": \"Invalid User ID or PIN\"}\n\nCRITICAL: You MUST call the tool. Do NOT output any JSON before calling the tool.\nCRITICAL: Output ONLY the JSON after getting the tool result. No extra text."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        896,
+        -256
+      ],
+      "id": "216fd367-27f1-44ab-b2cc-5692e8e1fc7e",
+      "name": "Auth Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "llama3.1:latest",
+          "mode": "list",
+          "cachedResultName": "llama3.1:latest"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        912,
+        -32
+      ],
+      "id": "188c2b0a-01dc-4b43-8c5b-aa9565376b8b",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "fhdylvxEBFRFKXuU",
+          "name": "Ollama Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Use this tool to look up user credentials for authentication. \nCall it when you need to verify a user's ID and PIN. \nReturns a JSON object with all valid user IDs, names, and PINs.",
+        "jsCode": "// Parse the input - handle various formats the model might send\nlet userId, pin;\n\ntry {\n  const parsed = JSON.parse(query);\n  // Handle nested input field\n  if (parsed.input) {\n    const inner = JSON.parse(parsed.input);\n    userId = String(inner.userId || inner.user_id || inner.id || '').trim();\n    pin = String(inner.pin || inner.PIN || '').trim();\n  } else {\n    userId = String(parsed.userId || parsed.user_id || parsed.id || '').trim();\n    pin = String(parsed.pin || parsed.PIN || '').trim();\n  }\n} catch(e) {\n  // Try to extract from plain text\n  const userIdMatch = query.match(/(\\d{4,})/);\n  const pinMatch = query.match(/pin[:\\s]+(\\d{4})/i);\n  userId = userIdMatch ? userIdMatch[1] : '';\n  pin = pinMatch ? pinMatch[1] : '';\n}\n\nconst mockUsers = {\n  \"5673\": { name: \"Devin\", pin: \"1234\" },\n  \"8841\": { name: \"Priya\", pin: \"0420\" },\n  \"3392\": { name: \"Aditya\", pin: \"7890\" }\n};\n\n// Do the verification in the tool itself\nif (!userId || !pin) {\n  return JSON.stringify({\n    verified: false,\n    reason: \"Missing userId or PIN\"\n  });\n}\n\nconst user = mockUsers[userId];\n\nif (!user) {\n  return JSON.stringify({\n    verified: false,\n    reason: \"User ID not found\"\n  });\n}\n\nif (user.pin !== pin) {\n  return JSON.stringify({\n    verified: false,\n    reason: \"PIN does not match\"\n  });\n}\n\n// Success\nreturn JSON.stringify({\n  verified: true,\n  userId: userId,\n  name: user.name\n});"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        -32
+      ],
+      "id": "ca0a0a01-60f4-4663-ae32-a87af1265c5e",
+      "name": "Code Tool"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2032,
+        -144
+      ],
+      "id": "e159fb36-e550-4077-bcf9-f7de762c0639",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionId = $('When chat message received').first().json.sessionId;\nconst buildState = $('Build State').first().json;\nconst rawOutput = $input.first().json.output;\n\n// Clean common formatting issues\nconst cleaned = rawOutput\n  .replace(/```json/gi, '')\n  .replace(/```/g, '')\n  .replace(/\\{\\{/g, '{')\n  .replace(/\\}\\}/g, '}')\n  .replace(/'/g, '\"')\n  .trim();\n\n// Try to parse JSON first\nlet authResult = null;\ntry {\n  const jsonMatch = cleaned.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    authResult = JSON.parse(jsonMatch[0]);\n  }\n} catch(e) {\n  authResult = null;\n}\n\n// If JSON parsing failed or gave wrong result,\n// try to detect success/failure from plain text\nlet isSuccess = false;\nlet successUserId = null;\nlet successName = null;\n\nif (authResult && authResult.authResult === 'success') {\n  // Clean JSON success\n  isSuccess = true;\n  successUserId = authResult.userId;\n  successName = authResult.name;\n} else if (authResult && authResult.verified === true) {\n  // Tool response leaked through\n  isSuccess = true;\n  successUserId = authResult.userId;\n  successName = authResult.name;\n} else {\n  // Try plain text detection\n  const lowerOutput = cleaned.toLowerCase();\n  const successSignals = [\n    'authenticated successfully',\n    'authentication successful',\n    'verified successfully',\n    'successfully authenticated',\n    'login successful',\n    'you are now authenticated',\n    'welcome',\n    'how can i assist',\n    'how can i help'\n  ];\n  \n  const hasSuccessSignal = successSignals.some(s => lowerOutput.includes(s));\n  \n  if (hasSuccessSignal) {\n    isSuccess = true;\n    // Extract userId and name from the tool response stored in logs\n    // Try to find them in the output text\n    const userIdMatch = rawOutput.match(/user id[:\\s]+(\\d+)/i) ||\n                        rawOutput.match(/\"userId\"[:\\s]+\"(\\d+)\"/i) ||\n                        rawOutput.match(/id is (\\d+)/i);\n    const nameMatch = rawOutput.match(/name is ([A-Za-z]+)/i) ||\n                      rawOutput.match(/\"name\"[:\\s]+\"([A-Za-z]+)\"/i) ||\n                      rawOutput.match(/your name[:\\s]+([A-Za-z]+)/i);\n\n    successUserId = userIdMatch ? userIdMatch[1] : null;\n    successName = nameMatch ? nameMatch[1] : null;\n\n    // If we still can't find name/userId from output,\n    // get it from the Build State's last known values\n    if (!successUserId) successUserId = buildState.auth?.userId;\n    if (!successName) successName = buildState.auth?.name;\n\n    // Last resort — look up from the user message\n    if (!successUserId) {\n      const msgMatch = $('When chat message received').first().json.chatInput\n        .match(/\\b(\\d{4})\\b/);\n      successUserId = msgMatch ? msgMatch[1] : null;\n    }\n  }\n}\n\nlet newFailedAttempts = buildState.auth?.failedAttempts ?? 0;\nlet nextStage;\nlet replyText;\n\nif (isSuccess) {\n  nextStage = 'INTENT_CAPTURE';\n  replyText = `Hi ${successName ?? 'there'}, how can I help you today?`;\n} else {\n  newFailedAttempts += 1;\n  if (newFailedAttempts >= 3) {\n    nextStage = 'END';\n    replyText = 'Too many failed attempts. This conversation has been ended for security reasons.';\n  } else {\n    nextStage = 'AUTH';\n    replyText = `Invalid User ID or PIN. Please try again. (Attempt ${newFailedAttempts} of 3)`;\n  }\n}\n\nreturn [{\n  json: {\n    sessionId,\n    stage: nextStage,\n    authenticated: isSuccess,\n    userId: successUserId,\n    name: successName,\n    failedAttempts: newFailedAttempts,\n    intents: JSON.stringify(buildState.intents ?? []),\n    intentRetryCount: buildState.intentRetryCount ?? 0,\n    turnCount: buildState.turnCount ?? 1,\n    lastAgentResponse: replyText,\n    output: replyText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -144
+      ],
+      "id": "d82146d2-858f-46ed-9aca-272801874dc6",
+      "name": "Handle Auth Result"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SQnRr1mALEPnYB5X",
+          "mode": "list",
+          "cachedResultName": "sessions",
+          "cachedResultUrl": "/projects/jAWnGIQQ4uaadEAG/datatables/SQnRr1mALEPnYB5X"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "authenticated": "={{ $json.authenticated }}",
+            "intentRetryCount": "={{ $json.intentRetryCount }}",
+            "turnCount": "={{ $json.turnCount }}",
+            "sessionId": "={{ $json.sessionId }}",
+            "stage": "={{ $json.stage }}",
+            "userId": "={{ $json.userId }}",
+            "name": "={{ $json.name }}",
+            "failedAttempts": "={{ $json.failedAttempts }}",
+            "intents": "={{ $json.intents }}",
+            "lastAgentResponse": "={{ $json.lastAgentResponse ?? '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "authenticated",
+              "displayName": "authenticated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "failedAttempts",
+              "displayName": "failedAttempts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intents",
+              "displayName": "intents",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intentRetryCount",
+              "displayName": "intentRetryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "turnCount",
+              "displayName": "turnCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastAgentResponse",
+              "displayName": "lastAgentResponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1600,
+        -144
+      ],
+      "id": "0ded9588-d8a7-4c88-937e-a6da9a89f288",
+      "name": "Save Session Auth"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SQnRr1mALEPnYB5X",
+          "mode": "list",
+          "cachedResultName": "sessions",
+          "cachedResultUrl": "/projects/jAWnGIQQ4uaadEAG/datatables/SQnRr1mALEPnYB5X"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "authenticated": "={{ $json.authenticated }}",
+            "intentRetryCount": "={{ $json.intentRetryCount }}",
+            "turnCount": "={{ $json.turnCount }}",
+            "sessionId": "={{ $json.sessionId }}",
+            "stage": "={{ $json.stage }}",
+            "userId": "={{ $json.userId }}",
+            "name": "={{ $json.name }}",
+            "failedAttempts": "={{ $json.failedAttempts }}",
+            "intents": "={{ $json.intents }}",
+            "lastAgentResponse": "={{ $json.lastAgentResponse }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "authenticated",
+              "displayName": "authenticated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "failedAttempts",
+              "displayName": "failedAttempts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intents",
+              "displayName": "intents",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intentRetryCount",
+              "displayName": "intentRetryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "turnCount",
+              "displayName": "turnCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastAgentResponse",
+              "displayName": "lastAgentResponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        144
+      ],
+      "id": "704a5c49-698b-44fd-9dcb-107eb84df6ae",
+      "name": "Save Session Intent"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2000,
+        144
+      ],
+      "id": "8a458f6a-64a6-41df-9967-b0eec423482d",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionId = $('When chat message received').first().json.sessionId;\nconst buildState = $('Build State').first().json;\nconst intents = buildState.intents ?? [];\n\n// Find the first pending intent\nconst pendingIntent = intents.find(i => i.status === 'pending');\n\nif (!pendingIntent) {\n  // No pending intents left — route to wrapup\n  return [{\n    json: {\n      sessionId,\n      stage: 'WRAPUP',\n      authenticated: buildState.auth?.authenticated ?? true,\n      userId: buildState.auth?.userId,\n      name: buildState.auth?.name,\n      failedAttempts: buildState.auth?.failedAttempts ?? 0,\n      intents: JSON.stringify(intents),\n      intentRetryCount: buildState.intentRetryCount ?? 0,\n      turnCount: buildState.turnCount ?? 1,\n      lastAgentResponse: buildState.lastAgentResponse ?? '',\n      route: 'WRAPUP',\n      output: ''\n    }\n  }];\n}\n\n// Return the pending intent with full state\nreturn [{\n  json: {\n    sessionId,\n    stage: 'INTENT_HANDLER',\n    authenticated: buildState.auth?.authenticated ?? true,\n    userId: buildState.auth?.userId,\n    name: buildState.auth?.name,\n    failedAttempts: buildState.auth?.failedAttempts ?? 0,\n    intents: JSON.stringify(intents),\n    intentRetryCount: buildState.intentRetryCount ?? 0,\n    turnCount: buildState.turnCount ?? 1,\n    lastAgentResponse: buildState.lastAgentResponse ?? '',\n    route: pendingIntent.type,\n    currentIntent: pendingIntent,\n    output: ''\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        736
+      ],
+      "id": "f42a1138-f9d4-46be-ac76-76434fe9d4a7",
+      "name": "Intent Handler"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "currency_conversion",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "75d4d52f-66db-4518-9500-cdd78aa74902"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Currency"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a07f753c-0e7c-4939-b21b-ce428eb7ee50",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "date_time",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "DateTime"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "1c7dd1ae-ae6b-4cc2-9875-d51024a1d06d",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "WRAPUP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Wrapup"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1248,
+        720
+      ],
+      "id": "18365df4-f7e3-456b-8fa7-3f84fe73d498",
+      "name": "Intent Router"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SQnRr1mALEPnYB5X",
+          "mode": "list",
+          "cachedResultName": "sessions",
+          "cachedResultUrl": "/projects/jAWnGIQQ4uaadEAG/datatables/SQnRr1mALEPnYB5X"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "authenticated": "={{ $json.authenticated }}",
+            "intentRetryCount": "={{ $json.intentRetryCount }}",
+            "turnCount": "={{ $json.turnCount }}",
+            "sessionId": "={{ $json.sessionId }}",
+            "stage": "={{ $json.stage }}",
+            "userId": "={{ $json.userId }}",
+            "name": "={{ $json.name }}",
+            "failedAttempts": "={{ $json.failedAttempts }}",
+            "intents": "={{ $json.intents }}",
+            "lastAgentResponse": "={{ $json.lastAgentResponse }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "authenticated",
+              "displayName": "authenticated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "failedAttempts",
+              "displayName": "failedAttempts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intents",
+              "displayName": "intents",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intentRetryCount",
+              "displayName": "intentRetryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "turnCount",
+              "displayName": "turnCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastAgentResponse",
+              "displayName": "lastAgentResponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2304,
+        736
+      ],
+      "id": "082119a8-1dcf-4a7e-85bb-5bd76a663217",
+      "name": "Save Session Currency"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2816,
+        736
+      ],
+      "id": "cd9259d8-a017-45a0-9346-f0942d1b3343",
+      "name": "Respond to Webhook3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The user wants to know the date for: {{ $json.currentIntent.params.query }}\n\nToday's information:\n- Today's full date: {{ new Date().toLocaleDateString('en-GB', {weekday:'long', year:'numeric', month:'long', day:'numeric'}) }}\n- Today's date (YYYY-MM-DD): {{ new Date().toISOString().split('T')[0] }}\n- Today's day number: {{ new Date().getDay() }} (0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday)\n\nYou MUST call the Date Resolver tool with EXACTLY this string (copy it exactly):\n{{ $json.currentIntent.params.query }}|||{{ new Date().toISOString().split('T')[0] }}\n\nExample: If query is \"tomorrow\" and today is 2026-07-06, call the tool with exactly:\ntomorrow|||2026-07-06\n\nDo not modify the format. Do not add spaces. Just copy the format above exactly.",
+        "options": {
+          "systemMessage": "You are the date and time processor of an AI assistant.\n\nYOUR STEPS:\n1. First say: \"Checking the date for that...\"\n2. Call the Date Resolver tool using EXACTLY the string provided in the prompt — do not change the format.\n3. The tool returns a JSON with a \"resolved\" field containing the answer.\n4. Return ONE short sentence with the result.\n\nEXAMPLE RESPONSES:\n- \"Checking the date for that... Tomorrow will be Monday, 7 July 2026.\"\n- \"Checking the date for that... The coming Sunday will be 13 July 2026.\"\n- \"Checking the date for that... 2 hours from now will be 14:30 on Monday, 6 July 2026.\"\n\nRULES:\n- Always call the tool — never guess the date yourself.\n- Return only ONE short sentence after the tool result.\n- Do not write long paragraphs.\n- If the tool returns success: false, say \"I couldn't understand that date query, please rephrase.\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1472,
+        336
+      ],
+      "id": "1692525f-3f62-4356-aea1-7c3c6f582e3e",
+      "name": "DateTime Processor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "llama3.1:latest",
+          "mode": "list",
+          "cachedResultName": "llama3.1:latest"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1456,
+        560
+      ],
+      "id": "e6752435-dea1-46f6-a536-c18568d76e69",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "fhdylvxEBFRFKXuU",
+          "name": "Ollama Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2704,
+        448
+      ],
+      "id": "4826e5cf-08ba-47ed-a205-3c3dfa3ac452",
+      "name": "Respond to Webhook4"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SQnRr1mALEPnYB5X",
+          "mode": "list",
+          "cachedResultName": "sessions",
+          "cachedResultUrl": "/projects/jAWnGIQQ4uaadEAG/datatables/SQnRr1mALEPnYB5X"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "authenticated": "={{ $json.authenticated }}",
+            "intentRetryCount": "={{ $json.intentRetryCount }}",
+            "turnCount": "={{ $json.turnCount }}",
+            "sessionId": "={{ $json.sessionId }}",
+            "stage": "={{ $json.stage }}",
+            "userId": "={{ $json.userId }}",
+            "name": "={{ $json.name }}",
+            "failedAttempts": "={{ $json.failedAttempts }}",
+            "intents": "={{ $json.intents }}",
+            "lastAgentResponse": "={{ $json.lastAgentResponse }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "authenticated",
+              "displayName": "authenticated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "failedAttempts",
+              "displayName": "failedAttempts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intents",
+              "displayName": "intents",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intentRetryCount",
+              "displayName": "intentRetryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "turnCount",
+              "displayName": "turnCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastAgentResponse",
+              "displayName": "lastAgentResponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2048,
+        448
+      ],
+      "id": "de2611b6-8d85-459a-8e73-b2fae017ff28",
+      "name": "Save Session DateTime"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionId = $('When chat message received').first().json.sessionId;\nconst buildState = $('Build State').first().json;\nconst rawOutput = $input.first().json.output;\n\n// Mark the current date_time intent as done\nconst intents = buildState.intents ?? [];\nconst updated = intents.map(i => {\n  if (i.type === 'date_time' && i.status === 'pending') {\n    return { ...i, status: 'done' };\n  }\n  return i;\n});\n\nreturn [{\n  json: {\n    sessionId,\n    stage: 'INTENT_HANDLER',\n    authenticated: buildState.auth?.authenticated ?? true,\n    userId: buildState.auth?.userId,\n    name: buildState.auth?.name,\n    failedAttempts: buildState.auth?.failedAttempts ?? 0,\n    intents: JSON.stringify(updated),\n    intentRetryCount: buildState.intentRetryCount ?? 0,\n    turnCount: buildState.turnCount ?? 1,\n    lastAgentResponse: rawOutput,\n    output: rawOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        448
+      ],
+      "id": "f1da173f-8e20-4bd2-ba99-1b2bcc5a8f33",
+      "name": "Mark DateTime Done"
+    },
+    {
+      "parameters": {
+        "description": "Use this tool to resolve natural language date/time queries. Pass the user's date query as a plain string. Returns the resolved date/time.",
+        "jsCode": "const queryText = query.toLowerCase().trim();\n\nlet actualQuery = queryText;\nlet now = new Date();\n\n// Handle date passed via ||| separator\nif (queryText.includes('|||')) {\n  const parts = queryText.split('|||');\n  actualQuery = parts[0].trim();\n  const dateStr = parts[1].trim();\n  if (dateStr && dateStr.match(/^\\d{4}-\\d{2}-\\d{2}$/)) {\n    now = new Date(dateStr + 'T12:00:00Z');\n  }\n}\n\nlet result = new Date(now);\nlet description = '';\n\nif (actualQuery.includes('tomorrow')) {\n  result.setUTCDate(now.getUTCDate() + 1);\n  description = 'tomorrow';\n} else if (actualQuery.includes('yesterday')) {\n  result.setUTCDate(now.getUTCDate() - 1);\n  description = 'yesterday';\n} else if (actualQuery === 'today') {\n  result = new Date(now);\n  description = 'today';\n} else if (/(\\d+)\\s*hour/.test(actualQuery)) {\n  const h = parseInt(actualQuery.match(/(\\d+)\\s*hour/)[1], 10);\n  result = new Date(now.getTime() + h * 3600 * 1000);\n  description = `${h} hour(s) from now`;\n} else if (/(\\d+)\\s*day/.test(actualQuery)) {\n  const d = parseInt(actualQuery.match(/(\\d+)\\s*day/)[1], 10);\n  result.setUTCDate(now.getUTCDate() + d);\n  description = `${d} day(s) from now`;\n} else if (/(\\d+)\\s*minute/.test(actualQuery)) {\n  const m = parseInt(actualQuery.match(/(\\d+)\\s*minute/)[1], 10);\n  result = new Date(now.getTime() + m * 60 * 1000);\n  description = `${m} minute(s) from now`;\n} else {\n  const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];\n  const target = days.findIndex(d => actualQuery.includes(d));\n  if (target >= 0) {\n    const todayDay = now.getUTCDay();\n    let diff = (target - todayDay + 7) % 7;\n    if (diff === 0) diff = 7;\n    if (actualQuery.includes('next') && !actualQuery.includes('coming')) {\n      diff = diff + 7;\n    }\n    result.setUTCDate(now.getUTCDate() + diff);\n    description = days[target];\n  } else {\n    return JSON.stringify({\n      success: false,\n      error: 'Could not understand the date query: ' + query\n    });\n  }\n}\n\nconst formatted = result.toLocaleDateString('en-GB', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric',\n  timeZone: 'UTC'\n});\n\nreturn JSON.stringify({\n  success: true,\n  query: actualQuery,\n  resolved: formatted,\n  isoDate: result.toISOString().split('T')[0],\n  description\n});"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        1616,
+        560
+      ],
+      "id": "fc693faa-21c0-4d72-9602-4ff81e4f6556",
+      "name": "Date Resolver"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "llama3.1:latest",
+          "mode": "list",
+          "cachedResultName": "llama3.1:latest"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1552,
+        1264
+      ],
+      "id": "fce2b060-c5f1-471e-9855-8c401cfbf842",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "fhdylvxEBFRFKXuU",
+          "name": "Ollama Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Context:\n- User name: {{ $json.name }}\n- Previous response: {{ $json.lastAgentResponse }}\n\nUser message: {{ $json.userMessage }}\n\nIf this is the first wrapup message (previous response is empty or just a processing result),\nask the user if they need anything else.\nIf the user has already been asked and is now responding, evaluate their response carefully.",
+        "options": {
+          "systemMessage": "You are the call wrap-up step of an AI assistant.\nAll of the user's requests have been processed.\n\nYOUR JOB:\n- ALWAYS start by asking: \"Is there anything else I can help you with?\"\n- Wait for the user's clear response before outputting any JSON.\n- \"ok\" or \"okay\" alone is NOT a yes — respond by asking again clearly.\n- If the user explicitly says yes or asks for something new → output ONLY:\n  {\"hasMoreIntents\": true, \"newIntent\": \"brief description\"}\n- If the user says no, nothing, that's all, thank you, goodbye, done, fine, or similar → output ONLY:\n  {\"hasMoreIntents\": false}\n\nCRITICAL RULES:\n- Output ONLY the JSON when you have a clear answer — no extra text before or after.\n- Never treat \"ok\" alone as confirmation of wanting more help.\n- \"No thanks\", \"that's it\", \"thank you\", \"I'm good\", \"nothing else\", \"all done\", \"no that's fine\" all mean hasMoreIntents: false.\n- Only output hasMoreIntents: true if user clearly asks for something new."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1472,
+        1040
+      ],
+      "id": "9466ec6f-038c-4a52-8219-4da387ca837a",
+      "name": "Wrapup Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionId = $('When chat message received').first().json.sessionId;\nconst buildState = $('Build State').first().json;\nconst rawOutput = $input.first().json.output;\nconst userMessage = $('When chat message received').first().json.chatInput;\nconst userMessageLower = userMessage.toLowerCase();\n\n// Parse agent JSON output\nlet parsedResult = null;\ntry {\n  const jsonMatch = rawOutput.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    parsedResult = JSON.parse(jsonMatch[0].replace(/'/g, '\"'));\n  }\n} catch(e) {\n  parsedResult = null;\n}\n\n// Detect new intents in user message\nconst currencyCodes = ['USD','EUR','GBP','INR','JPY','AUD','CAD','CHF','CNY','SGD','HKD','NZD','SEK','NOK','DKK'];\nconst dateKeywords = ['yesterday','tomorrow','monday','tuesday','wednesday','thursday','friday','saturday','sunday','next','coming','hour','minute','week'];\n\nconst hasCurrency = userMessageLower.includes('convert') ||\n                    userMessageLower.includes('conversion') ||\n                    userMessageLower.includes('exchange') ||\n                    userMessageLower.includes('rate') ||\n                    currencyCodes.filter(c => userMessageLower.includes(c.toLowerCase())).length >= 1;\n\nconst hasDateKeyword = dateKeywords.some(k => userMessageLower.includes(k));\nconst hasDateWord = userMessageLower.includes('date') || userMessageLower.includes('when');\nconst hasDate = hasDateKeyword || hasDateWord;\nconst userHasNewIntents = hasCurrency || hasDate;\n\n// Detect clear NO signals\nconst isUserNo = /\\b(no|nope|nothing|that'?s?\\s*(it|all|fine|good)|thank\\s*you|thanks|goodbye|bye|done|i'?m?\\s*(good|fine|all\\s*set)|nothing\\s*else|no\\s*more|not\\s*really|all\\s*done)\\b/.test(userMessageLower);\n\n// Simple yes\nconst isSimpleYes = /^(yes|yeah|yep|sure|please|more|another|add|ok|okay)[\\s\\.\\!\\?]*$/.test(userMessageLower.trim());\n\n// Check if agent is asking a question\nconst agentIsAsking = rawOutput.toLowerCase().includes('anything else') ||\n                      rawOutput.toLowerCase().includes('can i help') ||\n                      rawOutput.toLowerCase().includes('would you like') ||\n                      rawOutput.toLowerCase().includes('is there') ||\n                      rawOutput.toLowerCase().includes('anything i can');\n\n// If user has new intents — extract them right now\n// Run Intent Extractor logic inline so we don't lose the message\nlet extractedIntents = [];\n\nif (userHasNewIntents) {\n  if (hasCurrency) {\n    const foundCurrencies = currencyCodes.filter(c =>\n      userMessageLower.includes(c.toLowerCase())\n    );\n    let from = 'USD';\n    let to = 'INR';\n    if (foundCurrencies.length >= 2) {\n      const toPattern = new RegExp(`(${foundCurrencies[0]})\\\\s+to\\\\s+(${foundCurrencies[1]})`, 'i');\n      const reversePattern = new RegExp(`(${foundCurrencies[1]})\\\\s+to\\\\s+(${foundCurrencies[0]})`, 'i');\n      if (toPattern.test(userMessage)) { from = foundCurrencies[0]; to = foundCurrencies[1]; }\n      else if (reversePattern.test(userMessage)) { from = foundCurrencies[1]; to = foundCurrencies[0]; }\n      else { from = foundCurrencies[0]; to = foundCurrencies[1]; }\n    } else if (foundCurrencies.length === 1) {\n      from = foundCurrencies[0];\n    }\n    let date = 'latest';\n    if (userMessageLower.includes('yesterday')) date = 'yesterday';\n    else if (userMessageLower.includes('today')) date = 'today';\n    extractedIntents.push({ type: 'currency_conversion', params: { from, to, date }, status: 'pending' });\n  }\n\n  if (hasDate) {\n    const cleanMessage = userMessageLower\n      .replace(/convert|conversion|exchange|rate/g, '')\n      .replace(/[a-z]{3}\\s+to\\s+[a-z]{3}/g, '')\n      .trim();\n    const words = cleanMessage.split(/\\s+/);\n    let dateWords = [];\n    let capturing = false;\n    const allDateKeywords = [...dateKeywords, 'today'];\n    for (let i = 0; i < words.length; i++) {\n      const word = words[i];\n      if (allDateKeywords.some(k => word === k || word.startsWith(k))) capturing = true;\n      if (capturing) {\n        if (['and','for','also','plus'].includes(word) && dateWords.length > 0) break;\n        dateWords.push(words[i]);\n        if (dateWords.length >= 4) break;\n      }\n    }\n    let query = dateWords.join(' ').trim();\n    if (!query) query = 'today';\n    if (query !== 'this' && query !== 'a' && query !== 'the') {\n      extractedIntents.push({ type: 'date_time', params: { query }, status: 'pending' });\n    }\n  }\n}\n\nlet nextStage;\nlet replyText;\nlet newIntents = buildState.intents ?? [];\n\nif (userHasNewIntents && extractedIntents.length > 0) {\n  // Extract intents inline and go straight to INTENT_CONFIRM\n  newIntents = newIntents.filter(i => i.status !== 'done');\n  for (const incoming of extractedIntents) {\n    const alreadyExists = newIntents.some(e => e.type === incoming.type);\n    if (!alreadyExists) newIntents.push(incoming);\n  }\n  const intentSummary = newIntents.map((i, idx) => {\n    if (i.type === 'currency_conversion') return `${idx+1}. Currency conversion: ${i.params.from} to ${i.params.to}${i.params.date !== 'latest' ? ` for ${i.params.date}` : ''}`;\n    if (i.type === 'date_time') return `${idx+1}. Date/time: ${i.params.query}`;\n    return `${idx+1}. ${i.type}`;\n  }).join('\\n');\n  nextStage = 'INTENT_CONFIRM';\n  replyText = `Sure! Here's what I detected:\\n${intentSummary}\\n\\nShall I proceed?`;\n\n} else if (isUserNo || (parsedResult && parsedResult.hasMoreIntents === false)) {\n  nextStage = 'END';\n  replyText = 'Thank you for using our service. Have a great day!';\n\n} else if (agentIsAsking && isSimpleYes) {\n  nextStage = 'WRAPUP';\n  replyText = rawOutput;\n\n} else if (isSimpleYes || (parsedResult && parsedResult.hasMoreIntents === true)) {\n  newIntents = newIntents.filter(i => i.status !== 'done');\n  nextStage = 'INTENT_CAPTURE';\n  replyText = `Sure! What else can I help you with?`;\n\n} else if (agentIsAsking && !parsedResult) {\n  nextStage = 'WRAPUP';\n  replyText = rawOutput;\n\n} else {\n  nextStage = 'WRAPUP';\n  replyText = rawOutput;\n}\n\nreturn [{\n  json: {\n    sessionId,\n    stage: nextStage,\n    authenticated: buildState.auth?.authenticated ?? true,\n    userId: buildState.auth?.userId,\n    name: buildState.auth?.name,\n    failedAttempts: buildState.auth?.failedAttempts ?? 0,\n    intents: JSON.stringify(newIntents),\n    intentRetryCount: buildState.intentRetryCount ?? 0,\n    turnCount: buildState.turnCount ?? 1,\n    lastAgentResponse: replyText,\n    output: replyText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        1040
+      ],
+      "id": "e26c9894-6c42-49e1-8618-873223b4b3a7",
+      "name": "Handle Wrapup Result"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2464,
+        1040
+      ],
+      "id": "601f0950-aadd-4c7b-afc1-ef36b9778d5e",
+      "name": "Respond to Webhook5"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SQnRr1mALEPnYB5X",
+          "mode": "list",
+          "cachedResultName": "sessions",
+          "cachedResultUrl": "/projects/jAWnGIQQ4uaadEAG/datatables/SQnRr1mALEPnYB5X"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "authenticated": "={{ $json.authenticated }}",
+            "intentRetryCount": "={{ $json.intentRetryCount }}",
+            "turnCount": "={{ $json.turnCount }}",
+            "sessionId": "={{ $json.sessionId }}",
+            "stage": "={{ $json.stage }}",
+            "userId": "={{ $json.userId }}",
+            "name": "={{ $json.name }}",
+            "failedAttempts": "={{ $json.failedAttempts }}",
+            "intents": "={{ $json.intents }}",
+            "lastAgentResponse": "={{ $json.lastAgentResponse }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "authenticated",
+              "displayName": "authenticated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "failedAttempts",
+              "displayName": "failedAttempts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intents",
+              "displayName": "intents",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intentRetryCount",
+              "displayName": "intentRetryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "turnCount",
+              "displayName": "turnCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastAgentResponse",
+              "displayName": "lastAgentResponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2048,
+        1040
+      ],
+      "id": "9d4d9a64-0dee-49bf-ad3a-7fe8abc1bf8a",
+      "name": "Save Session Wrapup"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    output: \"This conversation has ended. Thank you.\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1232
+      ],
+      "id": "93793940-38ec-476e-80ca-80057f094682",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1248,
+        1232
+      ],
+      "id": "2adf541b-1e09-4b36-bffd-308393fcb2c1",
+      "name": "Respond to Webhook6"
+    },
+    {
+      "parameters": {
+        "jsCode": "const buildState = $('Build State').first().json;\nconst currentIntent = $json.currentIntent;\n\nconst from = currentIntent?.params?.from ?? 'USD';\nconst to = currentIntent?.params?.to ?? 'INR';\nlet date = currentIntent?.params?.date ?? 'latest';\n\n// Resolve relative dates\nif (date === 'yesterday') {\n  const d = new Date();\n  d.setDate(d.getDate() - 1);\n  date = d.toISOString().split('T')[0];\n} else if (date === 'today') {\n  // Frankfurter doesn't have today's rate yet — use latest\n  date = 'latest';\n} else if (date === 'latest') {\n  date = 'latest';\n}\n// For specific dates like \"2012-01-01\" or \"2026-07-05\" — use as-is\n\n// Frankfurter note: dates before 1999-01-04 are not available\n// Clamp to minimum date\nif (date !== 'latest') {\n  const dateObj = new Date(date);\n  const minDate = new Date('1999-01-04');\n  if (dateObj < minDate) {\n    date = '1999-01-04';\n  }\n}\n\nreturn [{\n  json: {\n    ...($json),\n    apiUrl: `https://api.frankfurter.dev/v1/${date}?from=${from}&to=${to}`,\n    from,\n    to,\n    date,\n    originalDate: currentIntent?.params?.date\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        736
+      ],
+      "id": "c2775089-5b37-46c6-8a5a-98a453fd573a",
+      "name": "Currency Prep"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.frankfurter.dev/v1/{{ $json.date }}?from={{ $json.from }}&to={{ $json.to }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1824,
+        736
+      ],
+      "id": "4c618abc-5529-4c8e-a299-06ec5c36a823",
+      "name": "Frankfurter API"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionId = $('When chat message received').first().json.sessionId;\nconst buildState = $('Build State').first().json;\nconst prepData = $('Currency Prep').first().json;\nconst apiResponse = $input.first().json;\n\nconst from = prepData.from;\nconst to = prepData.to;\nconst originalDate = prepData.originalDate;\n\nlet replyText;\n\nif (apiResponse.rates && apiResponse.rates[to]) {\n  const rate = apiResponse.rates[to];\n  const actualDate = apiResponse.date;\n\n  // Make the date description user-friendly\n  let dateDescription = `on ${actualDate}`;\n  if (originalDate === 'yesterday') dateDescription = `yesterday (${actualDate})`;\n  else if (originalDate === 'latest' || originalDate === 'today') dateDescription = `as of ${actualDate}`;\n  else if (originalDate && originalDate.includes('-01-01')) {\n    const year = originalDate.split('-')[0];\n    dateDescription = `on ${actualDate} (closest available to ${year})`;\n  }\n\n  replyText = `Checking currency conversion... ${dateDescription}, 1 ${from} was equal to ${rate} ${to}.`;\n} else {\n  replyText = `Checking currency conversion... Could not find the rate for ${from} to ${to}. The date may be too old or a non-trading day.`;\n}\n\n// Mark currency_conversion intent as done\nconst intents = buildState.intents ?? [];\nconst updated = intents.map(i => {\n  if (i.type === 'currency_conversion' && i.status === 'pending') {\n    return { ...i, status: 'done' };\n  }\n  return i;\n});\n\nreturn [{\n  json: {\n    sessionId,\n    stage: 'INTENT_HANDLER',\n    authenticated: buildState.auth?.authenticated ?? true,\n    userId: buildState.auth?.userId,\n    name: buildState.auth?.name,\n    failedAttempts: buildState.auth?.failedAttempts ?? 0,\n    intents: JSON.stringify(updated),\n    intentRetryCount: buildState.intentRetryCount ?? 0,\n    turnCount: buildState.turnCount ?? 1,\n    lastAgentResponse: replyText,\n    output: replyText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        736
+      ],
+      "id": "d456e234-2542-47a2-87ec-8db7af4a4645",
+      "name": "Currency Format"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionId = $('When chat message received').first().json.sessionId;\nconst buildState = $('Build State').first().json;\nconst userMessage = $('When chat message received').first().json.chatInput;\nconst userMessageLower = userMessage.toLowerCase();\nconst name = buildState.auth?.name ?? 'there';\n\nconst currencyCodes = ['USD','EUR','GBP','INR','JPY','AUD','CAD','CHF','CNY','SGD','HKD','NZD','SEK','NOK','DKK'];\nconst dateKeywords = ['yesterday','tomorrow','monday','tuesday','wednesday','thursday','friday','saturday','sunday','next','coming','hour','minute','week'];\n\nconst hasCurrency = userMessageLower.includes('convert') ||\n                    userMessageLower.includes('conversion') ||\n                    userMessageLower.includes('exchange') ||\n                    userMessageLower.includes('rate') ||\n                    currencyCodes.filter(c => userMessageLower.includes(c.toLowerCase())).length >= 1;\n\nconst hasDateKeyword = dateKeywords.some(k => userMessageLower.includes(k));\nconst hasDateWord = userMessageLower.includes('date') || userMessageLower.includes('when');\nconst hasTodayAsDate = userMessageLower.includes('today') &&\n                       (userMessageLower.includes('date') ||\n                        userMessageLower.includes('what') ||\n                        userMessageLower.includes('when') ||\n                        !hasCurrency);\nconst hasDate = hasDateKeyword || hasDateWord || hasTodayAsDate;\n\nconst existingIntents = buildState.intents ?? [];\nconst detectedIntents = [];\n\nlet currencyDate = 'latest';\n\nif (hasCurrency) {\n  const foundCurrencies = currencyCodes.filter(c =>\n    userMessageLower.includes(c.toLowerCase())\n  );\n\n  let from = 'USD';\n  let to = 'INR';\n\n  if (foundCurrencies.length >= 2) {\n    const toPattern = new RegExp(\n      `(${foundCurrencies[0]})\\\\s+to\\\\s+(${foundCurrencies[1]})`, 'i'\n    );\n    const reversePattern = new RegExp(\n      `(${foundCurrencies[1]})\\\\s+to\\\\s+(${foundCurrencies[0]})`, 'i'\n    );\n    if (toPattern.test(userMessage)) {\n      from = foundCurrencies[0]; to = foundCurrencies[1];\n    } else if (reversePattern.test(userMessage)) {\n      from = foundCurrencies[1]; to = foundCurrencies[0];\n    } else {\n      from = foundCurrencies[0]; to = foundCurrencies[1];\n    }\n  } else if (foundCurrencies.length === 1) {\n    from = foundCurrencies[0];\n  }\n\n  // Detect currency date — including specific years and full dates\n  if (userMessageLower.includes('yesterday')) {\n    currencyDate = 'yesterday';\n  } else if (userMessageLower.includes('today')) {\n    currencyDate = 'today';\n  } else {\n    // Check for full date pattern YYYY-MM-DD\n    const fullDateMatch = userMessage.match(/\\b(\\d{4}-\\d{2}-\\d{2})\\b/);\n    if (fullDateMatch) {\n      currencyDate = fullDateMatch[1];\n    } else {\n      // Check for year only (e.g. \"for 2012\", \"in 2015\")\n      const yearMatch = userMessage.match(/\\b(19\\d{2}|20\\d{2})\\b/);\n      if (yearMatch) {\n        // Use Jan 1st of that year as the date\n        currencyDate = `${yearMatch[1]}-01-01`;\n      }\n    }\n  }\n\n  detectedIntents.push({\n    type: 'currency_conversion',\n    params: { from, to, date: currencyDate },\n    status: 'pending'\n  });\n}\n\nif (hasDate) {\n  let cleanMessage = userMessageLower\n    .replace(/convert|conversion|exchange|rate/g, '')\n    .replace(/[a-z]{3}\\s+to\\s+[a-z]{3}/g, '')\n    .trim();\n\n  // Remove currency date keywords to avoid bleed\n  if (hasCurrency && currencyDate === 'yesterday') {\n    cleanMessage = cleanMessage.replace(/\\byesterday\\b/, '');\n  }\n  if (hasCurrency && currencyDate === 'today') {\n    cleanMessage = cleanMessage.replace(/\\btoday\\b/, '');\n  }\n  // Remove year if it was used for currency\n  if (hasCurrency && currencyDate.match(/^\\d{4}-\\d{2}-\\d{2}$/) && currencyDate.includes('-01-01')) {\n    const year = currencyDate.split('-')[0];\n    cleanMessage = cleanMessage.replace(new RegExp(`\\\\b${year}\\\\b`, 'g'), '');\n  }\n\n  const words = cleanMessage.split(/\\s+/);\n  let dateWords = [];\n  let capturing = false;\n  const allDateKeywords = [...dateKeywords, 'today'];\n\n  for (let i = 0; i < words.length; i++) {\n    const word = words[i];\n    if (allDateKeywords.some(k => word === k || word.startsWith(k))) {\n      capturing = true;\n    }\n    if (capturing) {\n      if (['and','for','also','plus'].includes(word) && dateWords.length > 0) break;\n      dateWords.push(words[i]);\n      if (dateWords.length >= 4) break;\n    }\n  }\n\n  let query = dateWords.join(' ').trim();\n  if (!query) query = 'today';\n\n  if (query !== 'this' && query !== 'a' && query !== 'the' && query !== '') {\n    detectedIntents.push({\n      type: 'date_time',\n      params: { query },\n      status: 'pending'\n    });\n  }\n}\n\n// Merge with existing intents\nconst merged = [...existingIntents];\nfor (const incoming of detectedIntents) {\n  const alreadyExists = merged.some(e => e.type === incoming.type);\n  if (!alreadyExists) merged.push(incoming);\n}\n\n// Build intent summary\nconst intentSummary = merged.map((i, idx) => {\n  if (i.type === 'currency_conversion') {\n    return `${idx + 1}. Currency conversion: ${i.params.from} to ${i.params.to}${i.params.date !== 'latest' ? ` for ${i.params.date}` : ''}`;\n  }\n  if (i.type === 'date_time') {\n    return `${idx + 1}. Date/time: ${i.params.query}`;\n  }\n  return `${idx + 1}. ${i.type}`;\n}).join('\\n');\n\nlet nextStage;\nlet replyText;\n\nif (merged.length > 0) {\n  nextStage = 'INTENT_CONFIRM';\n  replyText = `Sure ${name}! Here's what I detected:\\n${intentSummary}\\n\\nShall I proceed? You can also say:\\n- \"remove currency\" or \"remove date\" to remove an intent\\n- \"add [something]\" to add more`;\n} else {\n  nextStage = 'INTENT_CAPTURE';\n  replyText = `I'm sorry ${name}, I couldn't detect any supported intents. I can help with:\\n1. Currency conversion (e.g. \"convert USD to INR\")\\n2. Date/time questions (e.g. \"what date is next Monday?\")\\n\\nPlease try again.`;\n}\n\nreturn [{\n  json: {\n    sessionId,\n    stage: nextStage,\n    authenticated: buildState.auth?.authenticated ?? true,\n    userId: buildState.auth?.userId,\n    name: buildState.auth?.name,\n    failedAttempts: buildState.auth?.failedAttempts ?? 0,\n    intents: JSON.stringify(merged),\n    intentRetryCount: buildState.intentRetryCount ?? 0,\n    turnCount: buildState.turnCount ?? 1,\n    lastAgentResponse: replyText,\n    intentSummary,\n    output: replyText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        144
+      ],
+      "id": "7f3e412e-cc49-43cb-911e-4782aa446cdb",
+      "name": "Intent Extractor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "llama3.1:latest",
+          "mode": "list",
+          "cachedResultName": "llama3.1:latest"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        1696
+      ],
+      "id": "bf5d3879-628f-4500-a757-a8f21dc26cdd",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "fhdylvxEBFRFKXuU",
+          "name": "Ollama Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionId = $('When chat message received').first().json.sessionId;\nconst buildState = $('Build State').first().json;\nconst rawOutput = $input.first().json.output.trim();\nconst userMessage = $('When chat message received').first().json.chatInput;\nconst userMessageLower = userMessage.toLowerCase();\n\n// Detect intent keywords in user message for \"add\" case\nconst currencyCodes = ['USD','EUR','GBP','INR','JPY','AUD','CAD','CHF','CNY','SGD','HKD','NZD','SEK','NOK','DKK'];\nconst dateKeywords = ['yesterday','tomorrow','monday','tuesday','wednesday','thursday','friday','saturday','sunday','next','coming','hour','minute','week'];\n\nconst hasCurrency = userMessageLower.includes('convert') ||\n                    userMessageLower.includes('conversion') ||\n                    currencyCodes.filter(c => userMessageLower.includes(c.toLowerCase())).length >= 1;\nconst hasDate = dateKeywords.some(k => userMessageLower.includes(k)) ||\n                userMessageLower.includes('date');\nconst userHasNewIntent = hasCurrency || hasDate;\n\n// Check if user wants to add (either via ADD signal or by mentioning new intent)\nconst isAddSignal = rawOutput.toUpperCase().startsWith('ADD') ||\n                    userMessageLower.includes('add') ||\n                    userMessageLower.includes('also') ||\n                    userMessageLower.includes('and also');\n\nlet intents = buildState.intents ?? [];\nlet nextStage;\nlet replyText;\n\nif (rawOutput === 'CONFIRM' || rawOutput.toUpperCase().startsWith('CONFIRM')) {\n  nextStage = 'INTENT_HANDLER';\n  replyText = `Got it! I'll now process your requests.`;\n\n} else if (rawOutput === 'CANCEL' || rawOutput.toUpperCase().startsWith('CANCEL')) {\n  intents = [];\n  nextStage = 'INTENT_CAPTURE';\n  replyText = `No problem! What would you like help with?`;\n\n} else if (rawOutput.toUpperCase().startsWith('REMOVE_CURRENCY')) {\n  intents = intents.filter(i => i.type !== 'currency_conversion');\n  nextStage = intents.length > 0 ? 'INTENT_CONFIRM' : 'INTENT_CAPTURE';\n  const remaining = intents.map((i, idx) => {\n    if (i.type === 'currency_conversion') return `${idx+1}. Currency: ${i.params.from} to ${i.params.to}`;\n    if (i.type === 'date_time') return `${idx+1}. Date/time: ${i.params.query}`;\n    return `${idx+1}. ${i.type}`;\n  }).join('\\n');\n  replyText = intents.length > 0\n    ? `Removed currency conversion. Remaining:\\n${remaining}\\nShall I proceed?`\n    : `Removed currency conversion. No intents remaining. What would you like help with?`;\n\n} else if (rawOutput.toUpperCase().startsWith('REMOVE_DATE')) {\n  intents = intents.filter(i => i.type !== 'date_time');\n  nextStage = intents.length > 0 ? 'INTENT_CONFIRM' : 'INTENT_CAPTURE';\n  const remaining = intents.map((i, idx) => {\n    if (i.type === 'currency_conversion') return `${idx+1}. Currency: ${i.params.from} to ${i.params.to}`;\n    if (i.type === 'date_time') return `${idx+1}. Date/time: ${i.params.query}`;\n    return `${idx+1}. ${i.type}`;\n  }).join('\\n');\n  replyText = intents.length > 0\n    ? `Removed date/time. Remaining:\\n${remaining}\\nShall I proceed?`\n    : `Removed date/time. No intents remaining. What would you like help with?`;\n\n} else if (isAddSignal && userHasNewIntent) {\n  // User wants to add a new intent — extract it inline\n  const newExtracted = [];\n\n  if (hasCurrency) {\n    const foundCurrencies = currencyCodes.filter(c => userMessageLower.includes(c.toLowerCase()));\n    let from = 'USD'; let to = 'INR';\n    if (foundCurrencies.length >= 2) {\n      const toPattern = new RegExp(`(${foundCurrencies[0]})\\\\s+to\\\\s+(${foundCurrencies[1]})`, 'i');\n      const reversePattern = new RegExp(`(${foundCurrencies[1]})\\\\s+to\\\\s+(${foundCurrencies[0]})`, 'i');\n      if (toPattern.test(userMessage)) { from = foundCurrencies[0]; to = foundCurrencies[1]; }\n      else if (reversePattern.test(userMessage)) { from = foundCurrencies[1]; to = foundCurrencies[0]; }\n      else { from = foundCurrencies[0]; to = foundCurrencies[1]; }\n    } else if (foundCurrencies.length === 1) { from = foundCurrencies[0]; }\n    let date = 'latest';\n    if (userMessageLower.includes('yesterday')) date = 'yesterday';\n    else if (userMessageLower.includes('today')) date = 'today';\n    newExtracted.push({ type: 'currency_conversion', params: { from, to, date }, status: 'pending' });\n  }\n\n  if (hasDate) {\n    const words = userMessageLower.split(/\\s+/);\n    let dateWords = []; let capturing = false;\n    const allDateKeywords = [...dateKeywords, 'today'];\n    for (let i = 0; i < words.length; i++) {\n      const word = words[i];\n      if (allDateKeywords.some(k => word === k || word.startsWith(k))) capturing = true;\n      if (capturing) {\n        if (['and','for','also','plus'].includes(word) && dateWords.length > 0) break;\n        dateWords.push(words[i]);\n        if (dateWords.length >= 4) break;\n      }\n    }\n    let query = dateWords.join(' ').trim();\n    if (!query) query = 'today';\n    if (query !== 'this' && query !== 'a') {\n      newExtracted.push({ type: 'date_time', params: { query }, status: 'pending' });\n    }\n  }\n\n  // Merge new intents with existing\n  for (const incoming of newExtracted) {\n    const alreadyExists = intents.some(e => e.type === incoming.type);\n    if (!alreadyExists) intents.push(incoming);\n  }\n\n  const intentSummary = intents.map((i, idx) => {\n    if (i.type === 'currency_conversion') return `${idx+1}. Currency: ${i.params.from} to ${i.params.to}${i.params.date !== 'latest' ? ` for ${i.params.date}` : ''}`;\n    if (i.type === 'date_time') return `${idx+1}. Date/time: ${i.params.query}`;\n    return `${idx+1}. ${i.type}`;\n  }).join('\\n');\n\n  nextStage = 'INTENT_CONFIRM';\n  replyText = `Updated! Here are your intents:\\n${intentSummary}\\nShall I proceed?`;\n\n} else if (isAddSignal && !userHasNewIntent) {\n  nextStage = 'INTENT_CAPTURE';\n  replyText = `Sure! What would you like to add?`;\n\n} else {\n  // LLM gave conversational response — check if it's effectively a yes\n  const outputLower = rawOutput.toLowerCase();\n  const isImpliedConfirm = outputLower.includes('proceed') ||\n                            outputLower.includes('processing') ||\n                            outputLower.includes('got it') ||\n                            outputLower.includes('confirmed') ||\n                            outputLower.includes('will do');\n\n  if (isImpliedConfirm) {\n    nextStage = 'INTENT_HANDLER';\n    replyText = `Got it! I'll now process your requests.`;\n  } else {\n    nextStage = 'INTENT_CONFIRM';\n    replyText = rawOutput;\n  }\n}\n\nreturn [{\n  json: {\n    sessionId,\n    stage: nextStage,\n    authenticated: buildState.auth?.authenticated ?? true,\n    userId: buildState.auth?.userId,\n    name: buildState.auth?.name,\n    failedAttempts: buildState.auth?.failedAttempts ?? 0,\n    intents: JSON.stringify(intents),\n    intentRetryCount: buildState.intentRetryCount ?? 0,\n    turnCount: buildState.turnCount ?? 1,\n    lastAgentResponse: replyText,\n    output: replyText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        1520
+      ],
+      "id": "f45b68f6-96f9-419c-b4ff-7bef6ecac0a5",
+      "name": "Handle Confirm Result"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Context:\n- User name: {{ $json.auth.name }}\n- Current pending intents: {{ $json.intents }}\n- Previous response: {{ $json.lastAgentResponse }}\n\nUser message: {{ $json.userMessage }}",
+        "options": {
+          "systemMessage": "You are the intent confirmation step of an AI assistant.\nThe user's intents have already been extracted and are shown in the context.\n\nYOUR ONLY JOB is to confirm, modify or cancel the detected intents.\n\nRULES:\n- If previous response is empty, show the intent summary nicely and ask the user to confirm, add or remove.\n- If the user says yes/confirm/proceed/correct/ok → reply with ONLY the word: CONFIRM\n- If the user says no/cancel/clear/reset/start over → reply with ONLY the word: CANCEL\n- If the user says remove currency → reply with ONLY: REMOVE_CURRENCY\n- If the user says remove date → reply with ONLY: REMOVE_DATE\n- If the user wants to add something new → reply with ONLY: ADD\n- For anything else → have a natural conversation helping the user decide.\n- Keep responses short and friendly.\n- CRITICAL: When outputting CONFIRM, CANCEL, REMOVE_CURRENCY, REMOVE_DATE, or ADD — output ONLY that word, nothing else."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        896,
+        1520
+      ],
+      "id": "dac73a5f-d120-4062-b0dd-b0b843af7f31",
+      "name": "Intent Confirm Agent"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SQnRr1mALEPnYB5X",
+          "mode": "list",
+          "cachedResultName": "sessions",
+          "cachedResultUrl": "/projects/jAWnGIQQ4uaadEAG/datatables/SQnRr1mALEPnYB5X"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "authenticated": "={{ $json.authenticated }}",
+            "intentRetryCount": "={{ $json.intentRetryCount }}",
+            "turnCount": "={{ $json.turnCount }}",
+            "sessionId": "={{ $json.sessionId }}",
+            "stage": "={{ $json.stage }}",
+            "userId": "={{ $json.userId }}",
+            "name": "={{ $json.name }}",
+            "failedAttempts": "={{ $json.failedAttempts }}",
+            "intents": "={{ $json.intents }}",
+            "lastAgentResponse": "={{ $json.lastAgentResponse }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "authenticated",
+              "displayName": "authenticated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "failedAttempts",
+              "displayName": "failedAttempts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intents",
+              "displayName": "intents",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intentRetryCount",
+              "displayName": "intentRetryCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "turnCount",
+              "displayName": "turnCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastAgentResponse",
+              "displayName": "lastAgentResponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1536,
+        1520
+      ],
+      "id": "3c3f10aa-e29e-4172-a1d6-5357169a8c57",
+      "name": "Save Session Confirm"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2000,
+        1536
+      ],
+      "id": "76800cd2-2a36-4f44-865f-9d83fa7a9fde",
+      "name": "Respond to Webhook7"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d914eb96-f912-4b00-93d4-7e4a41237287",
+              "name": "output",
+              "value": "={{ $('Set Stage AUTH').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1808,
+        -544
+      ],
+      "id": "158f9aac-7dfe-47ff-ad84-20a5c117489c",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d914eb96-f912-4b00-93d4-7e4a41237287",
+              "name": "output",
+              "value": "={{ $('Handle Auth Result').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1808,
+        -144
+      ],
+      "id": "68538c47-75fd-4c09-b116-25f350fac6c8",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d914eb96-f912-4b00-93d4-7e4a41237287",
+              "name": "output",
+              "value": "={{ $('Intent Extractor').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1648,
+        144
+      ],
+      "id": "6fb725f2-d9b5-4e27-a2b9-7dc3a57defa9",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d914eb96-f912-4b00-93d4-7e4a41237287",
+              "name": "output",
+              "value": "={{ $('Mark DateTime Done').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2368,
+        448
+      ],
+      "id": "fde278d4-d641-4c17-a889-1795fa006718",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d914eb96-f912-4b00-93d4-7e4a41237287",
+              "name": "output",
+              "value": "={{ $('Currency Format').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2576,
+        736
+      ],
+      "id": "f6cd67d4-36a7-491f-9ea7-b3505cee9edb",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d914eb96-f912-4b00-93d4-7e4a41237287",
+              "name": "output",
+              "value": "={{ $('Handle Wrapup Result').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2272,
+        1040
+      ],
+      "id": "742543d0-9c1c-446e-9ced-1df156fa41a5",
+      "name": "Edit Fields5"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d914eb96-f912-4b00-93d4-7e4a41237287",
+              "name": "output",
+              "value": "={{ $('Handle Confirm Result').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1792,
+        1520
+      ],
+      "id": "d0064df4-14e4-415a-9bfd-bc345b637062",
+      "name": "Edit Fields6"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Get Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Session": {
+      "main": [
+        [
+          {
+            "node": "Build State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build State": {
+      "main": [
+        [
+          {
+            "node": "Stage Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Router": {
+      "main": [
+        [
+          {
+            "node": "Welcome Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Auth Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Intent Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Intent Confirm Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Intent Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wrapup Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Welcome Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Welcome Agent": {
+      "main": [
+        [
+          {
+            "node": "Set Stage AUTH",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Stage AUTH": {
+      "main": [
+        [
+          {
+            "node": "Save Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Auth Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Auth Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth Agent": {
+      "main": [
+        [
+          {
+            "node": "Handle Auth Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Auth Result": {
+      "main": [
+        [
+          {
+            "node": "Save Session Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session Auth": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session Intent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Handler": {
+      "main": [
+        [
+          {
+            "node": "Intent Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Router": {
+      "main": [
+        [
+          {
+            "node": "Currency Prep",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DateTime Processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wrapup Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session Currency": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "DateTime Processor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DateTime Processor": {
+      "main": [
+        [
+          {
+            "node": "Mark DateTime Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session DateTime": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark DateTime Done": {
+      "main": [
+        [
+          {
+            "node": "Save Session DateTime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date Resolver": {
+      "ai_tool": [
+        [
+          {
+            "node": "DateTime Processor",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Wrapup Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrapup Agent": {
+      "main": [
+        [
+          {
+            "node": "Handle Wrapup Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Wrapup Result": {
+      "main": [
+        [
+          {
+            "node": "Save Session Wrapup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session Wrapup": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Currency Prep": {
+      "main": [
+        [
+          {
+            "node": "Frankfurter API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Frankfurter API": {
+      "main": [
+        [
+          {
+            "node": "Currency Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Currency Format": {
+      "main": [
+        [
+          {
+            "node": "Save Session Currency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Extractor": {
+      "main": [
+        [
+          {
+            "node": "Save Session Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Intent Confirm Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Confirm Agent": {
+      "main": [
+        [
+          {
+            "node": "Handle Confirm Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Confirm Result": {
+      "main": [
+        [
+          {
+            "node": "Save Session Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session Confirm": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields5": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields6": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "0693d916-577f-440b-b088-9ae3189f7c69",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "139fcd8cb46ac8b0ad1ced482e57a148eb7350d8337c212b2877bde31b1a62c5"
+  },
+  "nodeGroups": [],
+  "id": "v40lh8iZTuidUgr6",
+  "tags": []
+}
