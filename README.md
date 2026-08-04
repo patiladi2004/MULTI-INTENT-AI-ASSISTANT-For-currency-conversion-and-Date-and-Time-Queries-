@@ -1,0 +1,2 @@
+# MULTI-INTENT-AI-ASSISTANT-For-currency-conversion-and-Date-and-Time-Queries-
+The Multi-Intent AI Assistant is a stateful, conversational AI agent built entirely inside n8n — an open-source workflow automation platform. It simulates a professional phone-based support assistant that can handle multiple user requests within a single conversation, while maintaining full memory of the conversation state across every message.
