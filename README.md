@@ -294,8 +294,6 @@ If you want to understand **how this project was built from scratch**, refer to 
 
 B.E. Computer Engineering
 
-St. Francis Institute of Technology
-
 Mumbai, India
 
 ---
